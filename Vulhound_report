@@ -1,0 +1,56 @@
+import socket
+import threading
+from datetime import datetime
+
+# Open ports list
+open_ports = []
+
+# Lock for threads writing to the same list
+lock = threading.Lock()
+
+# Scan a single port
+def scan_port(target, port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(1)
+    result = s.connect_ex((target, port))
+    if result == 0:
+        print(f"Port {port} is OPEN")
+        with lock:
+            open_ports.append(port)
+    s.close()
+
+# Get target and range
+target = input("Enter target IP address: ")
+start_port = int(input("Enter start port: "))
+end_port = int(input("Enter end port: "))
+
+print(f"\nScanning {target} from port {start_port} to {end_port}...\n")
+
+# Launch threads
+threads = []
+for port in range(start_port, end_port + 1):
+    thread = threading.Thread(target=scan_port, args=(target, port))
+    threads.append(thread)
+    thread.start()
+
+# Wait for all threads to finish
+for thread in threads:
+    thread.join()
+
+# Save results
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+filename = f"vulnhound_report_{timestamp}.txt"
+
+with open(filename, "w") as f:
+    f.write(f"VulnHound Scan Report\n")
+    f.write(f"Target: {target}\n")
+    f.write(f"Port range: {start_port}-{end_port}\n")
+    f.write(f"Scan time: {timestamp}\n\n")
+    if open_ports:
+        f.write("Open Ports:\n")
+        for port in open_ports:
+            f.write(f"- Port {port}\n")
+    else:
+        f.write("No open ports found.\n")
+
+print(f"\nScan complete. Report saved as {filename}")
